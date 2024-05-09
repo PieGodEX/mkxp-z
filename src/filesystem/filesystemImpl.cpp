@@ -49,7 +49,7 @@ bool filesystemImpl::setCurrentDirectory(const char *path) {
     bool ret;
 
     try {
-        ret = fs::equivalent(fs::current_path(), stdPath);
+        ret = fs::equivalent(fs::current_path(), originalPath.append(stdPath));
     } catch (...) {
         Debug() << "Failed to check current path." << path;
         ret = false;
