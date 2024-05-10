@@ -197,6 +197,7 @@ void Config::read(int argc, char *argv[]) {
         {"JITMinCalls", 10000},
         {"YJITEnable", false},
         {"dumpAtlas", false},
+        {"winConsole", false},
         {"bindingNames", json::object({
             {"a", "A"},
             {"b", "B"},
@@ -342,6 +343,8 @@ try { exp } catch (...) {}
     
     // Determine whether to open a console window on... Windows
     winConsole = getEnvironmentBool("MKXPZ_WINDOWS_CONSOLE", editor.debug);
+    if(!winConsole)
+        SET_OPT(winConsole, boolean);
     
 #ifdef __APPLE__
     // Determine whether to use the Metal renderer on macOS
