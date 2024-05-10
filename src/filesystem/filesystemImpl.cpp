@@ -24,7 +24,6 @@ namespace fs = ghc::filesystem;
 // https://stackoverflow.com/questions/12774207/fastest-way-to-check-if-a-file-exist-using-standard-c-c11-c
 bool filesystemImpl::fileExists(const char *path) {
     fs::path stdPath(path);
-    fs::path originalPath = fs::current_path();
     return (fs::exists(stdPath) && !fs::is_directory(stdPath));
 }
 
@@ -46,6 +45,7 @@ std::string filesystemImpl::contentsOfFileAsString(const char *path) {
 // chdir and getcwd do not support unicode on Windows
 bool filesystemImpl::setCurrentDirectory(const char *path) {
     fs::path stdPath(path);
+    fs::path originalPath = fs::current_path();
     fs::current_path(stdPath);
     bool ret;
 
