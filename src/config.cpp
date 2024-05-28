@@ -203,6 +203,7 @@ void Config::read(int argc, char *argv[]) {
         {"JITMinCalls", 10000},
         {"YJITEnable", false},
         {"dumpAtlas", false},
+        {"bindControllerInput", true},
         {"bindingNames", json::object({
             {"a", "A"},
             {"b", "B"},
@@ -320,6 +321,7 @@ try { exp } catch (...) {}
     SET_STRINGOPT(customScript, customScript);
     SET_OPT(useScriptNames, boolean);
     SET_OPT(dumpAtlas, boolean);
+    SET_OPT(bindControllerInput, boolean);
     
     fillStringVec(opts["preloadScript"], preloadScripts);
     fillStringVec(opts["postloadScript"], postloadScripts);
