@@ -161,6 +161,8 @@ struct Config {
         std::string r;
     } kbActionNames;
     
+    bool bindControllerInput;
+
     std::string userConfPath;
     
     /* Internal */

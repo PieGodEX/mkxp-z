@@ -903,7 +903,7 @@ struct InputPrivate
         if (!rtData.bindingUpdateMsg.poll(d))
             return;
         
-        applyBindingDesc(d);
+        applyBindingDesc(d, rtData.config);
     }
     
     template<class B>
@@ -913,7 +913,7 @@ struct InputPrivate
             bindings.push_back(&bind[i]);
     }
     
-    void applyBindingDesc(const BDescVec &d)
+    void applyBindingDesc(const BDescVec &d, const Config &config)
     {
         kbBindings.clear();
         ctrlABindings.clear();
@@ -970,8 +970,10 @@ struct InputPrivate
         appendBindings(msBindings);
         
         appendBindings(kbBindings);
-        appendBindings(ctrlABindings);
-        appendBindings(ctrlBBindings);
+        if(config.bindControllerInput){
+            appendBindings(ctrlABindings);
+            appendBindings(ctrlBBindings);
+        }
     }
     
     void initStaticKbBindings()

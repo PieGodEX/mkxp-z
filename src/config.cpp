@@ -198,6 +198,7 @@ void Config::read(int argc, char *argv[]) {
         {"YJITEnable", false},
         {"dumpAtlas", false},
         {"winConsole", false},
+        {"bindControllerInput", true},
         {"bindingNames", json::object({
             {"a", "A"},
             {"b", "B"},
@@ -315,6 +316,8 @@ try { exp } catch (...) {}
     SET_STRINGOPT(customScript, customScript);
     SET_OPT(useScriptNames, boolean);
     SET_OPT(dumpAtlas, boolean);
+    
+    SET_OPT(bindControllerInput, boolean);
     
     fillStringVec(opts["preloadScript"], preloadScripts);
     fillStringVec(opts["RTP"], rtps);
