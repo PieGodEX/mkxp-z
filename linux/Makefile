@@ -3,6 +3,9 @@ ARCH_OPENSSL ?= linux-$(ARCH)
 ARCH_CFLAGS ?=
 ARCH_CONFIGURE ?= $(shell gcc -dumpmachine)
 
+RB_VERSION := 3_4_1
+RB_SUFFIX  := $(shell ruby -e "puts ('$(RB_VERSION)'.split('_')[0..1]).join('.')")
+
 SDL_FLAGS := ${SDL_FLAGS}
 SDL2_IMAGE_FLAGS := ${SDL2_IMAGE_FLAGS}
 SDL2_TTF_FLAGS := ${SDL2_TTF_FLAGS}
@@ -333,9 +336,9 @@ $(DOWNLOADS)/openssl/Configure:
 	$(CLONE) $(GITHUB)/openssl/openssl $(DOWNLOADS)/openssl --single-branch --branch openssl-3.0.12 --depth 1
 
 # Standard ruby
-ruby: init_dirs openssl $(LIBDIR)/libruby.so.3.1
+ruby: init_dirs openssl $(LIBDIR)/libruby.so.$(RB_SUFFIX)
 
-$(LIBDIR)/libruby.so.3.1: $(DOWNLOADS)/ruby/Makefile
+$(LIBDIR)/libruby.so.$(RB_SUFFIX): $(DOWNLOADS)/ruby/Makefile
 	cd $(DOWNLOADS)/ruby; \
 	make -j$(NPROC); make install DESTDIR="$(BUILD_PREFIX)"
 
@@ -352,7 +355,7 @@ $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
 	cd $(DOWNLOADS)/ruby; autoreconf -i
 
 $(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch --branch mkxp-z-3.1.3 --depth 1;
+	$(CLONE) $(GITHUB)/ruby/ruby $(DOWNLOADS)/ruby --single-branch --branch v$(RB_VERSION) --depth 1;
 
 # ====
 init_dirs:
