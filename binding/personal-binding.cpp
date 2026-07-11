@@ -71,6 +71,50 @@ RB_METHOD(fontSetSolid){
     f->setSolid(set);
     return Qnil;
 }
+RB_METHOD(fontGetDefaultSolid){
+    RB_UNUSED_PARAM;
+    Font *f = getPrivateData<Font>(self);
+    return f->getDefaultSolid() ? Qtrue : Qfalse;
+}
+RB_METHOD(fontSetDefaultSolid){
+    RB_UNUSED_PARAM;
+    Font *f = getPrivateData<Font>(self);
+    const bool *set;
+    rb_get_args(argc, argv, "b", &set RB_ARG_END);
+    f->setDefaultSolid(set);
+    return Qnil;
+}
+//=============================================================================
+// Font Get/Set Path
+//-----------------------------------------------------------------------------
+//  Alternative to the family name nonsense
+//=============================================================================
+RB_METHOD(fontGetPath){
+    RB_UNUSED_PARAM;
+    Font* f = getPrivateData<Font>(self);
+    return rb_str_new_cstr(f->getPath().c_str());
+}
+RB_METHOD(fontSetPath){
+    RB_UNUSED_PARAM;
+    Font* f = getPrivateData<Font>(self);
+    const char* filename = "";
+    rb_get_args(argc, argv, "z", &filename RB_ARG_END);
+    f->setPath(filename);
+    return Qnil;
+}
+RB_METHOD(fontGetDefaultPath){
+    RB_UNUSED_PARAM;
+    Font* f = getPrivateData<Font>(self);
+    return rb_str_new_cstr(f->getDefaultPath().c_str());
+}
+RB_METHOD(fontSetDefaultPath){
+    RB_UNUSED_PARAM;
+    Font* f = getPrivateData<Font>(self);
+    const char* filename;
+    rb_get_args(argc, argv, "z", &filename RB_ARG_END);
+    f->setDefaultPath(filename);
+    return Qnil;
+}
 //=============================================================================
 // Fonts Binding Init
 //=============================================================================
@@ -83,10 +127,37 @@ void fontsBindingInit(){
   //
   //  Works sometimes
   //
+  //  When true, font anti-aliasing is turned off, and you can see
+  // the font's pixels completely unsmoothed
+  //
   //  Defaults to false
   //=================================================================
   _rb_define_method(klass, "solid", fontGetSolid);
   _rb_define_method(klass, "solid=", fontSetSolid);
+  //=================================================================
+  // Default Solid Accessor
+  //-----------------------------------------------------------------
+  //  Manages font anti-aliasing globally
+  //=================================================================
+  rb_define_class_method(klass, "default_solid", fontGetDefaultSolid);
+  rb_define_class_method(klass, "default_solid=", fontSetDefaultSolid);
+  //=================================================================
+  // Path
+  //-----------------------------------------------------------------
+  //  Gets/Sets the direct path of a font file, used as an alternative
+  // for the horrible traumatizing trash rpgm called font family name
+  // selector thingies
+  //
+  //  Also works for selecting fonts outside of .ttf format, but no
+  // clue what the total supported formats are
+  //=================================================================
+  _rb_define_method(klass, "path", fontGetPath);
+  _rb_define_method(klass, "path=", fontSetPath);
+  //=================================================================
+  // Default Path
+  //=================================================================
+  rb_define_class_method(klass, "default_path", fontGetDefaultPath);
+  rb_define_class_method(klass, "default_path=", fontSetDefaultPath);
 }
 
 //=============================================================================

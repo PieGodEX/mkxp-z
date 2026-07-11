@@ -532,11 +532,44 @@ static int calc_ppem_for_height(Font_Container *font, int height)
 
 	return ppem;
 }
+
 /* /wine */
+
+//=============================================================================
+// Get Font From Path
+//-----------------------------------------------------------------------------
+//  Hate dealing with font families, just try via filename
+//=============================================================================
+_TTF_Font *SharedFontState::getFontFromPath(std::string path, int size){
+	// For now, doesn't bother with any checks of if the file exists or not
+	if(path.empty()) return NULL;
+
+	// Allocates R/W handle (Why is it called ops?)
+	SDL_RWops* ops = SDL_AllocRW();
+
+	// Reads (Isn't there a close I should be keeping track of?)
+	shState->fileSystem().openReadRaw(*ops, path.c_str(), true);
+
+	// Opens font
+	TTF_Font* font = TTF_OpenFontRW(ops, 1, size* 0.90f);
+
+	// Explode if something went wrong
+	if (!font) return NULL;
+
+	// Stores cache key
+	FontSizeKey key(path, size);
+
+	// Caches it
+	//p->pool.insert(key, font);
+
+	// Done!
+	return font;
+}
 
 _TTF_Font *SharedFontState::getFont(std::string family,
                                     int size, float hiresMult, int outline_size)
 {
+	std::string input = family;
 	std::transform(family.begin(), family.end(), family.begin(),
 		[](unsigned char c){ return std::tolower(c); });
 
@@ -554,6 +587,8 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 	{
 		/* Doesn't exist; use built-in font */
 		family = "";
+		TTF_Font *file_font = getFontFromPath(input, size);
+		if (file_font) return file_font;
 	}
 
 	FontSizeKey key(family, size);
@@ -737,6 +772,7 @@ static bool pickExistingFontName(const std::vector<std::string> &names,
 struct FontPrivate
 {
 	std::string name;
+	std::string path;
 	int size;
 	float hiresMult;
 	bool bold;
@@ -750,6 +786,7 @@ struct FontPrivate
 	Color outColorTmp;
 
 	static std::string defaultName;
+	static std::string defaultPath;
 	static int defaultSize;
 	static bool defaultBold;
 	static bool defaultItalic;
@@ -832,6 +869,7 @@ struct FontPrivate
 };
 
 std::string FontPrivate::defaultName     = "Arial";
+std::string FontPrivate::defaultPath     = "";
 int         FontPrivate::defaultSize     = 22;
 bool        FontPrivate::defaultBold     = false;
 bool        FontPrivate::defaultItalic   = false;
@@ -896,6 +934,16 @@ void Font::setName(const std::vector<std::string> &names)
 	p->isSolid = strcmp(p->name.c_str(), "") && shState->config().fontIsSolid(p->name.c_str());
 }
 
+void Font::setPath(std::string path)
+{
+	p->path = path;
+}
+
+std::string Font::getPath()
+{
+	return p->path;
+}
+
 void Font::setSize(int value, bool checkIllegal)
 {
 	if (p->size == value)
@@ -950,6 +998,16 @@ void Font::setDefaultName(const std::vector<std::string> &names,
 	pickExistingFontName(names, FontPrivate::defaultName, sfs);
 }
 
+void Font::setDefaultPath(std::string path)
+{
+	FontPrivate::defaultPath = path;
+}
+
+std::string Font::getDefaultPath()
+{
+	return FontPrivate::defaultPath;
+}
+
 const std::vector<std::string> &Font::getInitialDefaultNames()
 {
 	return FontPrivate::initialDefaultNames;
@@ -1001,6 +1059,17 @@ void Font::initDefaults(const SharedFontState &sfs)
 	FontPrivate::defaultShadow  = (rgssVer == 2 ? true : false);
 }
 
+std::string Font::getFontTarget(){
+	// First, checks if path is set
+	if(!p->path.empty()) return p->path;
+
+	// If not, checks if default path is set
+	if(!FontPrivate::defaultPath.empty()) return FontPrivate::defaultPath;
+
+	// If not, whatever don't care anymore
+	return p->name;
+}
+
 _TTF_Font *Font::getSdlFont(int outline_size)
 {
 	_TTF_Font **font;
@@ -1012,6 +1081,11 @@ _TTF_Font *Font::getSdlFont(int outline_size)
 	if (!*font)
 		*font = shState->fontState().getFont(p->name.c_str(),
 		                                     p->size, p->hiresMult, outline_size);
+
+	std::string target = getFontTarget();
+
+	if (!p->sdlFont)
+		p->sdlFont = shState->fontState().getFont(target.c_str(), p->size, p->hiresMult, outline_size);
 
 	if(outline_size && TTF_GetFontOutline(*font) != outline_size)
 		TTF_SetFontOutline(*font, outline_size);

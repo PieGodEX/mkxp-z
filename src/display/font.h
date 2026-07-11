@@ -46,7 +46,7 @@ public:
 	 * 'filename' is the corresponding path */
 	void initFontSetCB(SDL_RWops &ops,
 	                   const std::string &filename);
-
+	_TTF_Font *getFontFromPath(std::string path, int size);
 	_TTF_Font *getFont(std::string family,
 	                   int size, float hiresMult, int outline_size = 0);
 
@@ -109,6 +109,10 @@ public:
 
 	static const std::vector<std::string> &getInitialDefaultNames();
     bool isSolid() const;
+	std::string getPath();
+	void setPath(std::string path);
+	static void setDefaultPath(std::string path);
+	static std::string getDefaultPath();
 
 	/* Assigns heap allocated objects to object properties;
 	 * using this in pure C++ will cause memory leaks
@@ -120,6 +124,7 @@ public:
 
 	/* internal */
 	_TTF_Font *getSdlFont(int outline_size);
+	std::string getFontTarget();
 
 private:
 	FontPrivate *p;
