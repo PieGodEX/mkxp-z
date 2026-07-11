@@ -38,6 +38,11 @@ RB_METHOD(graphicsGetWindowHeight){
 //=============================================================================
 void resizeBindingInit(){
   VALUE module = rb_const_get(rb_cObject, rb_intern("Graphics"));
+  //=================================================================
+  // Window Size
+  //-----------------------------------------------------------------
+  //  Gets the physical size of the display window (?) (DPI???)
+  //=================================================================
   _rb_define_module_function(module, "window_width", graphicsGetWindowWidth);
   _rb_define_module_function(module, "window_height", graphicsGetWindowHeight);
 }
@@ -50,7 +55,8 @@ void resizeBindingInit(){
 // Font Get/Set Solid
 //-----------------------------------------------------------------------------
 //  font-binding.cpp and font.cpp in general uses really complicated looking
-// defines my powerlevel isn't high enough to understand so I won't use those
+// defines that my powerlevel isn't high enough to understand so I won't use
+// those
 //=============================================================================
 RB_METHOD(fontGetSolid){
     RB_UNUSED_PARAM;
@@ -60,7 +66,7 @@ RB_METHOD(fontGetSolid){
 RB_METHOD(fontSetSolid){
     RB_UNUSED_PARAM;
     Font *f = getPrivateData<Font>(self);
-    const bool *set;
+    bool set = 0;
     rb_get_args(argc, argv, "b", &set RB_ARG_END);
     f->setSolid(set);
     return Qnil;
@@ -70,6 +76,15 @@ RB_METHOD(fontSetSolid){
 //=============================================================================
 void fontsBindingInit(){
   VALUE klass = rb_const_get(rb_cObject, rb_intern("Font"));
+  //=================================================================
+  // Solid Accessor
+  //-----------------------------------------------------------------
+  //  Enables/Disables font anti-aliasing
+  //
+  //  Works sometimes
+  //
+  //  Defaults to false
+  //=================================================================
   _rb_define_method(klass, "solid", fontGetSolid);
   _rb_define_method(klass, "solid=", fontSetSolid);
 }
