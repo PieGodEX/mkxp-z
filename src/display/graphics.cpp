@@ -1533,6 +1533,14 @@ void Graphics::resizeWindow(int width, int height, bool center) {
         this->center();
 }
 
+int Graphics::windowWidth(){
+    return p->winSize.x;
+}
+
+int Graphics::windowHeight(){
+    return p->winSize.y;
+}
+
 bool Graphics::updateMovieInput(Movie *movie) {
     return  p->threadData->rqTerm || p->threadData->rqReset;
 }

@@ -14,10 +14,39 @@ Personal Bindings
 #include "binding-util.h"
 #include "exception.h"
 
+#include "graphics.h"
+
+//=============================================================================
+//=============================================================================
+//=============================================================================
+
+//=============================================================================
+// Get Window Size
+//=============================================================================
+RB_METHOD(graphicsGetWindowWidth){
+    RB_UNUSED_PARAM;
+    return rb_fix_new(shState->graphics().windowWidth());
+}
+RB_METHOD(graphicsGetWindowHeight){
+    RB_UNUSED_PARAM;
+    return rb_fix_new(shState->graphics().windowHeight());
+}
+//=============================================================================
+// Resize Binding Init
+//=============================================================================
+void resizeBindingInit(){
+  VALUE module = rb_const_get(rb_cObject, rb_intern("Graphics"));
+  _rb_define_module_function(module, "window_width", graphicsGetWindowWidth);
+  _rb_define_module_function(module, "window_height", graphicsGetWindowHeight);
+}
+
+//=============================================================================
+//=============================================================================
+//=============================================================================
+
 //=============================================================================
 // Personal Binding Init
-//-----------------------------------------------------------------------------
-//
 //=============================================================================
 void personalBindingInit(){
+  resizeBindingInit();
 }
