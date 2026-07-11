@@ -11,12 +11,18 @@ Personal Bindings
 =============================================================================*/
 #include "audio.h"
 #include "sharedstate.h"
+
+#include "binding-types.h"
 #include "binding-util.h"
+
 #include "exception.h"
 
 #include "graphics.h"
 
 #include "font.h"
+
+#include "disposable-binding.h"
+#include "bitmap.h"
 
 //=============================================================================
 //=============================================================================
@@ -161,9 +167,26 @@ void fontsBindingInit(){
 }
 
 //=============================================================================
+// Bitmap Get/Set Mask
+//=============================================================================
+DEF_GFX_PROP_OBJ_REF(Bitmap, Color, Mask, "mask")
+//=============================================================================
+// Fonts Binding Init
+//=============================================================================
+void personalBitmapBindingInit(){
+  VALUE klass = rb_const_get(rb_cObject, rb_intern("Bitmap"));
+  //=================================================================
+  // Mask Accessor
+  //=================================================================
+  _rb_define_method(klass, "mask", BitmapGetMask);
+  _rb_define_method(klass, "mask=", BitmapSetMask);
+}
+
+//=============================================================================
 // Personal Binding Init
 //=============================================================================
 void personalBindingInit(){
   resizeBindingInit();
   fontsBindingInit();
+  personalBitmapBindingInit();
 }

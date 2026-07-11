@@ -241,6 +241,10 @@ public:
 	 * texture size uniform in shader */
 	void bindTex(ShaderBase &shader, bool substituteLoresSize = true);
 
+	Color* getMask();
+	void setMask(Color* m);
+	void mask();
+
 	/* Adds 'rect' to tainted area */
 	void taintArea(const IntRect &rect);
 

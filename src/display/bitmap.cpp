@@ -253,6 +253,10 @@ struct BitmapPrivate
     // For high-resolution texture replacement.
     Bitmap *selfHires;
     Bitmap *selfLores;
+
+    // Color mask
+    Color* mask;
+
     bool assumingRubyGC;
     
     // Child bitmaps are created by Planes, Sprites, and Windows for mega surfaces
@@ -4194,7 +4198,79 @@ void Bitmap::bindTex(ShaderBase &shader, bool substituteLoresSize)
 {
     // Hires mode is handled by p->bindTexture.
 
+    //printf("binding texture to a ShaderBase %p\n", &shader);
+    //shader.mask = mask;
     p->bindTexture(shader, substituteLoresSize);
+}
+
+Color* Bitmap::getMask(){
+    guardDisposed();
+    return p->mask;
+}
+
+void Bitmap::setMask(Color* m){
+    p->mask = m;
+
+    mask();
+}
+
+
+void Bitmap::mask()
+{
+    // Explode if disposed
+    guardDisposed();
+
+    // Explode if Mega / Animated since I don't feel like testing with those
+    GUARD_MEGA;
+    GUARD_ANIMATED;
+
+    //================================================================================================
+    // Binding, attaching, processing, and running a shader on a Bitmap
+    //================================================================================================
+    // Not 100% sure what this is, but grabs it
+    Quad &quad = shState->gpQuad();
+
+    // Creates a rect equal to the Bitmap/Sprite/Texture's size
+    FloatRect rect(0, 0, width(), height());
+
+    // I guess it goes "this is how far we should edit"
+    quad.setTexPosRect(rect, rect);
+
+    // Get the shader (Not sure what the & is all about, never seen that used to initialize a variable before)
+    MaskShader &shader = shState->shaders().mask;
+
+    // Push something to the global blend state?
+    glState.blend.pushSet(false);
+
+    // Push something to the global viewport state?
+    glState.viewport.pushSet(IntRect(0, 0, width(), height()));
+
+    // All sorts of "this is what we're about to edit" binding
+    TEX::bind(p->gl.tex);
+    FBO::bind(p->gl.fbo);
+    shader.bind();
+
+    // The sole important part, tells the shader what the mask is
+    shader.setMask(p->mask->norm);
+
+    // Might be required, might not be, not sure
+    shader.setTexSize(Vec2i(width(), height()));
+
+    // Applies the shader stuff?
+    shader.applyViewportProj();
+
+    // Draws?
+    quad.draw();
+
+    // Adds it to the framebuffer?
+    p->bindFBO();
+
+    // Removes from the global view/blend tables, mkxp intentionally crashes upon exiting if this isn't used properly
+    glState.viewport.pop();
+    glState.blend.pop();
+
+    // Done!
+    p->onModified();
 }
 
 void Bitmap::taintArea(const IntRect &rect)

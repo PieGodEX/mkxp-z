@@ -41,6 +41,7 @@
 #include "gray.frag.xxd"
 #include "flatColor.frag.xxd"
 #include "simple.frag.xxd"
+#include "mask.frag.xxd"
 #include "simpleColor.frag.xxd"
 #include "simpleAlpha.frag.xxd"
 #include "simpleAlphaUni.frag.xxd"
@@ -53,6 +54,7 @@
 #endif
 #include "minimal.vert.xxd"
 #include "simple.vert.xxd"
+#include "mask.vert.xxd"
 #include "simpleColor.vert.xxd"
 #include "sprite.vert.xxd"
 #include "tilemap.vert.xxd"
@@ -1003,3 +1005,21 @@ void XbrzShader::setTargetScale(const Vec2 &value)
 	gl.Uniform2f(u_targetScale, value.x, value.y);
 }
 #endif
+
+//=============================================================================
+// Personal
+//=============================================================================
+
+MaskShader::MaskShader()
+{
+	INIT_SHADER(mask, mask, MaskShader);
+
+	ShaderBase::init();
+
+	GET_U(colormask);
+}
+
+void MaskShader::setMask(const Vec4 &color)
+{
+	setVec4Uniform(u_colormask, color);
+}

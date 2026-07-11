@@ -449,6 +449,22 @@ protected:
 	GLint u_targetScale;
 };
 
+//=============================================================================
+// Mine
+//=============================================================================
+class MaskShader : public ShaderBase
+{
+public:
+	MaskShader();
+	void setMask(const Vec4 &color);
+private:
+	GLint u_colormask;
+};
+
+//=============================================================================
+// And back to our scheduled programming
+//=============================================================================
+
 /* Global object containing all available shaders */
 struct ShaderSet
 {
@@ -469,6 +485,7 @@ struct ShaderSet
 	BltShader blt;
 	SimpleMatrixShader simpleMatrix;
 	BlurShader blur;
+	MaskShader mask;
 	TilemapVXShader tilemapVX;
 	KglInvertShader kglInvert;
 	KglCompressAlphaShader kglCompressAlpha;

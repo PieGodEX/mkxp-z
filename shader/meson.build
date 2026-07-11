@@ -10,6 +10,8 @@ embedded_shaders = [
     'bitmapBlit.frag',
     'flatColor.frag',
     'simple.frag',
+    'mask.frag',
+    'mask.vert',
     'simpleColor.frag',
     'simpleAlpha.frag',
     'simpleAlphaUni.frag',
