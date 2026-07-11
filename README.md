@@ -24,5 +24,8 @@ Refer to the [the original](https://github.com/mkxp-z/mkxp-z/) for everything.
 - Set `Graphics.play_movie`'s skip parameter to accept symbols for input actions, maybe? To change what button causes it to skip?
 - A way to retrieve the monitors and running resolution of the player's PC? (Either `System.monitors[i]` or `Graphics.desktop_resolution` or something like that)
 - Split detected controllers into an array for multiplayer experience
-- Slap in a `rgssInput` config value that changes whether mkxp handles input with settings for all/keyboard/controller/none, for madmen who want to disable the C-side input handling (i.e. controller binding ~~probably only that~~) and replace it with some poorly-built poorly-optimized ruby-side one (Read as: Me)
 - Fix console attachment to work with piping to files
+- Externally loaded shaders
+- Add Rect#to_a
+- Figure out why Audio.bgm_pos eventually gets more and more desynced when used with MIDI
+- Externally loaded plugins, any way for Ruby C extensions to be able to access mkxp-z internals
