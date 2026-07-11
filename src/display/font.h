@@ -85,6 +85,7 @@ public:
 	DECL_ATTR( Color,    Color& )
 	DECL_ATTR( Shadow,   bool   )
 	DECL_ATTR( Outline,  bool   )
+	DECL_ATTR( Solid,    bool   )
 	DECL_ATTR( OutColor, Color& )
 
 	DECL_ATTR_STATIC( DefaultSize,     int    )
@@ -93,6 +94,7 @@ public:
 	DECL_ATTR_STATIC( DefaultColor,    Color& )
 	DECL_ATTR_STATIC( DefaultShadow,   bool   )
 	DECL_ATTR_STATIC( DefaultOutline,  bool   )
+	DECL_ATTR_STATIC( DefaultSolid,    bool   )
 	DECL_ATTR_STATIC( DefaultOutColor, Color& )
 
 	/* There is no point in providing getters for these,

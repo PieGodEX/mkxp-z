@@ -754,6 +754,7 @@ struct FontPrivate
 	static bool defaultBold;
 	static bool defaultItalic;
 	static bool defaultOutline;
+	static bool defaultSolid;
 	static bool defaultShadow;
 	static Color *defaultColor;
 	static Color *defaultOutColor;
@@ -784,7 +785,7 @@ struct FontPrivate
 	      outColorTmp(*defaultOutColor),
 	      sdlFont(0),
 	      sdlFontOutline(0),
-          isSolid(false)
+          isSolid(defaultSolid)
 	{}
 
 	FontPrivate(const FontPrivate &other)
@@ -801,7 +802,7 @@ struct FontPrivate
 	      outColorTmp(*other.outColor),
 	      sdlFont(other.sdlFont),
 	      sdlFontOutline(other.sdlFontOutline),
-          isSolid(false)
+          isSolid(other.isSolid)
 	{}
 
 	void operator=(const FontPrivate &o)
@@ -835,6 +836,7 @@ int         FontPrivate::defaultSize     = 22;
 bool        FontPrivate::defaultBold     = false;
 bool        FontPrivate::defaultItalic   = false;
 bool        FontPrivate::defaultOutline  = false; /* Inited at runtime */
+bool        FontPrivate::defaultSolid    = false; /* Inited at runtime */
 bool        FontPrivate::defaultShadow   = false; /* Inited at runtime */
 Color      *FontPrivate::defaultColor    = &FontPrivate::defaultColorTmp;
 Color      *FontPrivate::defaultOutColor = &FontPrivate::defaultOutColorTmp;
@@ -929,6 +931,7 @@ DEF_ATTR_SIMPLE(Font, Bold,     bool,    p->bold)
 DEF_ATTR_SIMPLE(Font, Italic,   bool,    p->italic)
 DEF_ATTR_SIMPLE(Font, Shadow,   bool,    p->shadow)
 DEF_ATTR_SIMPLE(Font, Outline,  bool,    p->outline)
+DEF_ATTR_SIMPLE(Font, Solid,    bool,    p->isSolid)
 DEF_ATTR_SIMPLE(Font, Color,    Color&, *p->color)
 DEF_ATTR_SIMPLE(Font, OutColor, Color&, *p->outColor)
 
@@ -937,6 +940,7 @@ DEF_ATTR_SIMPLE_STATIC(Font, DefaultBold,     bool,    FontPrivate::defaultBold)
 DEF_ATTR_SIMPLE_STATIC(Font, DefaultItalic,   bool,    FontPrivate::defaultItalic)
 DEF_ATTR_SIMPLE_STATIC(Font, DefaultShadow,   bool,    FontPrivate::defaultShadow)
 DEF_ATTR_SIMPLE_STATIC(Font, DefaultOutline,  bool,    FontPrivate::defaultOutline)
+DEF_ATTR_SIMPLE_STATIC(Font, DefaultSolid,  bool,    FontPrivate::defaultSolid)
 DEF_ATTR_SIMPLE_STATIC(Font, DefaultColor,    Color&, *FontPrivate::defaultColor)
 DEF_ATTR_SIMPLE_STATIC(Font, DefaultOutColor, Color&, *FontPrivate::defaultOutColor)
 

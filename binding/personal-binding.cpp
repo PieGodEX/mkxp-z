@@ -16,6 +16,8 @@ Personal Bindings
 
 #include "graphics.h"
 
+#include "font.h"
+
 //=============================================================================
 //=============================================================================
 //=============================================================================
@@ -45,8 +47,37 @@ void resizeBindingInit(){
 //=============================================================================
 
 //=============================================================================
+// Font Get/Set Solid
+//-----------------------------------------------------------------------------
+//  font-binding.cpp and font.cpp in general uses really complicated looking
+// defines my powerlevel isn't high enough to understand so I won't use those
+//=============================================================================
+RB_METHOD(fontGetSolid){
+    RB_UNUSED_PARAM;
+    Font *f = getPrivateData<Font>(self);
+    return f->isSolid() ? Qtrue : Qfalse;
+}
+RB_METHOD(fontSetSolid){
+    RB_UNUSED_PARAM;
+    Font *f = getPrivateData<Font>(self);
+    const bool *set;
+    rb_get_args(argc, argv, "b", &set RB_ARG_END);
+    f->setSolid(set);
+    return Qnil;
+}
+//=============================================================================
+// Fonts Binding Init
+//=============================================================================
+void fontsBindingInit(){
+  VALUE klass = rb_const_get(rb_cObject, rb_intern("Font"));
+  _rb_define_method(klass, "solid", fontGetSolid);
+  _rb_define_method(klass, "solid=", fontSetSolid);
+}
+
+//=============================================================================
 // Personal Binding Init
 //=============================================================================
 void personalBindingInit(){
   resizeBindingInit();
+  fontsBindingInit();
 }
