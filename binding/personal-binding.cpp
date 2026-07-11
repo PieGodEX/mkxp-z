@@ -24,6 +24,8 @@ Personal Bindings
 #include "disposable-binding.h"
 #include "bitmap.h"
 
+#include "filesystem.h"
+
 //=============================================================================
 //=============================================================================
 //=============================================================================
@@ -183,10 +185,25 @@ void personalBitmapBindingInit(){
 }
 
 //=============================================================================
+// Filesystem
+//=============================================================================
+VALUE filesystemExist(VALUE self, VALUE thing){
+    char* cstr = StringValueCStr(thing);
+    bool result = shState->fileSystem().exists(cstr);
+    return result ? Qtrue : Qfalse;
+}
+
+void systemBindingInit(){
+  VALUE klass = rb_define_class("Filesystem", rb_cObject);
+  rb_define_singleton_method(klass, "exist?", filesystemExist, 1);
+}
+
+//=============================================================================
 // Personal Binding Init
 //=============================================================================
 void personalBindingInit(){
   resizeBindingInit();
   fontsBindingInit();
   personalBitmapBindingInit();
+  systemBindingInit();
 }
