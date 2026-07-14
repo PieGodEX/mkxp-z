@@ -1,0 +1,30 @@
+[wrap-file]
+source_url = https://github.com/ruby/ruby/archive/refs/tags/v4.0.5.tar.gz
+source_filename = ruby-4.0.5.tar.gz
+source_hash = ab81d49cae08f488eae690e0c1c82d2352f5f4e16cbd377a4d129fc15d3f770a
+directory = ruby-4.0.5
+patch_directory = ruby-4.0
+diff_files =
+#    ruby-3.1-bison.patch,
+#    ruby-3.1-bsd.patch,
+#    ruby-3.1-bundle.patch,
+#    ruby-3.1-ccache.patch,
+#    ruby-3.1-darwin-in6.patch,
+#    ruby-3.1-deps.patch,
+#    ruby-3.1-dllexport.patch,
+#    ruby-3.1-exp.patch,
+#    ruby-3.1-fake.patch,
+#    ruby-3.1-init.patch,
+#    ruby-3.1-libruby-static.patch,
+#    ruby-3.1-libs.patch,
+#    ruby-3.1-miniruby.patch,
+#    ruby-3.1-pkg-config.patch,
+#    ruby-3.1-random.patch,
+#    ruby-3.1-rbinstall.patch,
+#    ruby-3.1-reconfig.patch,
+#    ruby-3.1-round.patch,
+#    ruby-3.1-windows-arm64.patch,
+#    ruby-3.1-mkxp-z-patches.patch,
+#    ruby-3.1-clock-gettime.patch,
+#    ruby-3.1-mkxp-z-patches-windows-libs.patch,
+    end-of-diff-files.patch
