@@ -1,7 +1,7 @@
-[wrap-file]
-source_url = https://github.com/ruby/ruby/archive/refs/tags/v4.0.5.tar.gz
-source_filename = ruby-4.0.5.tar.gz
-source_hash = ab81d49cae08f488eae690e0c1c82d2352f5f4e16cbd377a4d129fc15d3f770a
+[wrap-git]
+url = https://github.com/ruby/ruby.git
+revision = v4.0.6
+depth = 1
 directory = ruby-4.0.5
 patch_directory = ruby-4.0
 diff_files =
