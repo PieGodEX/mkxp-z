@@ -29,3 +29,6 @@ Refer to the [the original](https://github.com/mkxp-z/mkxp-z/) for everything.
 - Add Rect#to_a
 - Figure out why Audio.bgm_pos eventually gets more and more desynced when used with MIDI
 - Externally loaded plugins, any way for Ruby C extensions to be able to access mkxp-z internals
+- More Viewport antics
+  - Viewport.zoom_x and Viewport.zoom_y
+  - Viewport.snap_to_bitmap
