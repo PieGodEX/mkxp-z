@@ -8,7 +8,7 @@ Refer to the [the original](https://github.com/mkxp-z/mkxp-z/) for everything.
 ### Done
 - Changed `mkxp.json` to `config.json` for no reason in particular
 - Added `Filesystem.exist?(path)` to verify the existence of paths or files in the path cache
-- Added `Bitmap.mask(color)` to efficienty remove a color from a bitmap
+- Added `Bitmap.mask(color)` to efficiently remove a color from a bitmap
 - Added `Font.solid` and `Font.solid=true/false` to set a font's solid setting without needing to edit the configuration file
 - Added `Font.path` and `Font.path=` to brute force a font to load from a file without needing to know the font's family name
 - Added `Graphics.window_width` and `Graphics.window_height` to retrieve the current size of the program window itself
@@ -26,6 +26,7 @@ Refer to the [the original](https://github.com/mkxp-z/mkxp-z/) for everything.
 - Split detected controllers into an array for multiplayer experience
 - Fix console attachment to work with piping to files
 - Externally loaded shaders
+  - Image-masking, slap a bitmap into another one to use it as an erase mask
 - Add Rect#to_a
 - Figure out why Audio.bgm_pos eventually gets more and more desynced when used with MIDI
 - Externally loaded plugins, any way for Ruby C extensions to be able to access mkxp-z internals
