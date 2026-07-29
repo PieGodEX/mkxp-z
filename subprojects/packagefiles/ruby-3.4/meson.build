@@ -135,8 +135,8 @@ ruby = declare_dependency(
             ]
             : [],
         meson.project_build_root() / 'build' / 'ext' / 'extinit.a',
-        meson.project_build_root() / 'build' / 'ext' / 'bigdecimal' / 'bigdecimal.a',
         meson.project_build_root() / 'build' / 'ext' / 'cgi' / 'escape' / 'escape.a',
+        meson.project_build_root() / 'build' / 'ext' / 'erb' / 'escape' / 'escape.a',
         meson.project_build_root() / 'build' / 'ext' / 'continuation' / 'continuation.a',
         meson.project_build_root() / 'build' / 'ext' / 'coverage' / 'coverage.a',
         meson.project_build_root() / 'build' / 'ext' / 'date' / 'date_core.a',
@@ -155,11 +155,9 @@ ruby = declare_dependency(
         meson.project_build_root() / 'build' / 'ext' / 'json' / 'generator' / 'generator.a',
         meson.project_build_root() / 'build' / 'ext' / 'json' / 'parser' / 'parser.a',
         meson.project_build_root() / 'build' / 'ext' / 'monitor' / 'monitor.a',
-        meson.project_build_root() / 'build' / 'ext' / 'nkf' / 'nkf.a',
         meson.project_build_root() / 'build' / 'ext' / 'objspace' / 'objspace.a',
         meson.project_build_root() / 'build' / 'ext' / 'pathname' / 'pathname.a',
         meson.project_build_root() / 'build' / 'ext' / 'psych' / 'psych.a',
-        meson.project_build_root() / 'build' / 'ext' / 'racc' / 'cparse' / 'cparse.a',
         meson.project_build_root() / 'build' / 'ext' / 'rbconfig' / 'sizeof' / 'sizeof.a',
         meson.project_build_root() / 'build' / 'ext' / 'ripper' / 'ripper.a',
         meson.project_build_root() / 'build' / 'ext' / 'socket' / 'socket.a',
@@ -173,7 +171,6 @@ ruby = declare_dependency(
             ]
             : [
                 meson.project_build_root() / 'build' / 'ext' / 'pty' / 'pty.a',
-                meson.project_build_root() / 'build' / 'ext' / 'syslog' / 'syslog.a',
             ],
         meson.project_build_root() / 'build' / 'enc' / 'encinit.a',
         meson.project_build_root() / 'build' / 'enc' / 'libenc.a',
