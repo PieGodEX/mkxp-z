@@ -1,0 +1,32 @@
+#=======================================================================================================================
+# Strings
+#-----------------------------------------------------------------------------------------------------------------------
+#  I don't fully get it, but without this patch, ruby fails to link on my linux system, with it constantly asking for
+# crypt_r otherwise
+#=======================================================================================================================
+
+--- a/string.c
++++ b/string.c
+@@ -45,14 +45,14 @@
+ #include "ruby_assert.h"
+ #include "vm_sync.h"
+ 
+-#if defined HAVE_CRYPT_R
+-# if defined HAVE_CRYPT_H
+-#  include <crypt.h>
+-# endif
+-#elif !defined HAVE_CRYPT
+-# include "missing/crypt.h"
+-# define HAVE_CRYPT_R 1
+-#endif
++
++
++
++
++
++#include "missing/crypt.h"
++#define HAVE_CRYPT_R 1
++
+ 
+ #define BEG(no) (regs->beg[(no)])
+ #define END(no) (regs->end[(no)])

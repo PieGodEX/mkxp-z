@@ -29,7 +29,7 @@
 #include <string>
 
 struct SDL_RWops;
-struct _TTF_Font;
+struct MKXPZ_TTF_FONT;
 struct Config;
 
 struct SharedFontStatePrivate;
@@ -52,7 +52,7 @@ public:
 
 	bool fontPresent(std::string family) const;
 
-	static _TTF_Font *openBundled(int size);
+	static MKXPZ_TTF_FONT *openBundled(int size);
     void setDefaultFontFamily(const std::string &family);
 
 private:

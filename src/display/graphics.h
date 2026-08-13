@@ -38,7 +38,7 @@ class Graphics
 public:
     double getDelta();
     double lastUpdate();
-    
+
 	void update(bool checkForShutdown = true);
 	void freeze();
 	void transition(int duration = 8,
@@ -69,6 +69,7 @@ public:
     void resizeWindow(int width, int height, bool center=false);
     int windowWidth();
     int windowHeight();
+	void onSizeChanged();
 	void drawMovieFrame(const THEORAPLAY_VideoFrame* video, Bitmap *videoBitmap);
 	bool updateMovieInput(Movie *movie);
 	void playMovie(const char *filename, int volume, bool skippable);
@@ -96,7 +97,7 @@ public:
 	 * if "checkReset" */
 	void repaintWait(const AtomicFlag &exitCond,
 	                 bool checkReset = true);
-    
+
     void lock(bool force = false);
     void unlock(bool force = false);
 

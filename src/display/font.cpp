@@ -35,13 +35,14 @@
 #include <algorithm>
 #include <cctype>
 
-#ifdef MKXPZ_BUILD_XCODE
-#include "filesystem/filesystem.h"
-#endif
-
 #include <SDL_ttf.h>
 
-#ifndef MKXPZ_BUILD_XCODE
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_SFNT_NAMES_H
+#include FT_TRUETYPE_TABLES_H
+#include FT_TRUETYPE_IDS_H
+
 #ifndef MKXPZ_CJK_FONT
 #include "liberation.ttf.xxd"
 #else
@@ -55,28 +56,20 @@
 #define BUNDLED_FONT wqymicrohei
 #endif
 
-#define BUNDLED_FONT_DECL(FONT) \
-	extern unsigned char ___assets_##FONT##_ttf[]; \
-	extern unsigned int ___assets_##FONT##_ttf_len;
-
-BUNDLED_FONT_DECL(liberation)
-
-#define BUNDLED_FONT_D(f) ___assets_## f ##_ttf
-#define BUNDLED_FONT_L(f) ___assets_## f ##_ttf_len
+#define BUNDLED_FONT_D(f) mkxp_assets_## f ##_ttf
+#define BUNDLED_FONT_L(f) mkxp_assets_## f ##_ttf_len
 
 // Go fuck yourself CPP
 #define BNDL_F_D(f) BUNDLED_FONT_D(f)
 #define BNDL_F_L(f) BUNDLED_FONT_L(f)
 
-#endif
+/* Dirty hack to get the FT_Face.
+ * SDL_ttf will probably never move it from the beginning of the struct. */
+#define TTF_FONT_TO_FT_FACE(font) (*reinterpret_cast<FT_Face *>(font))
 
 static SDL_RWops *openBundledFont()
 {
-#ifndef MKXPZ_BUILD_XCODE
     return SDL_RWFromConstMem(BNDL_F_D(BUNDLED_FONT), BNDL_F_L(BUNDLED_FONT));
-#else
-    return SDL_RWFromFile(mkxp_fs::getPathForAsset("Fonts/liberation", "ttf").c_str(), "rb");
-#endif
 }
 
 
@@ -105,7 +98,7 @@ struct SharedFontStatePrivate
 	/* Pool of already opened fonts; once opened, they are reused
 	 * and never closed until the termination of the program */
 	BoostHash<FontKey, TTF_Font*> pool;
-    
+
     /* Internal default font family that is used anytime an
      * empty/invalid family is requested */
     std::string defaultFamily;
@@ -275,7 +268,7 @@ bool SharedFontState::fontPresent(std::string family) const
 	return !(set.regular.empty() && set.other.empty());
 }
 
-_TTF_Font *SharedFontState::openBundled(int size)
+MKXPZ_TTF_FONT *SharedFontState::openBundled(int size)
 {
 	SDL_RWops *ops = openBundledFont();
 
@@ -353,7 +346,7 @@ struct FontPrivate
 	 * (when it is queried by a Bitmap), prior it is
 	 * set to null */
 	TTF_Font *sdlFont;
-    
+
     bool isSolid;
 
 	FontPrivate(int size)
