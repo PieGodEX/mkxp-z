@@ -31,7 +31,7 @@ jobs:
           nix-shell --packages $packages --run ''
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Verify
         run: |
@@ -50,11 +50,66 @@ jobs:
             sha256sum -c <<< "$hashes"
           EOF
 
+  build-source-tarball:
+    name: ${{ matrix.job-name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - job-name: Source tarball with dependencies
+            artifact-name: source-with-dependencies
+            dist-subprojects: all
+          - job-name: Source tarball without dependencies
+            artifact-name: source-without-dependencies
+            dist-subprojects: none
+    steps:
+      - uses: benjlevesque/short-sha@v4.0
+        id: short-sha
+        with:
+          length: 7
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y bison ccache cmake diffutils git make ruby
+          # The Meson version provided by APT is too old so we install Meson using pip instead
+          sudo apt install -y ninja-build python3-pip
+          pip3 install meson
+          sudo apt install -y gcc g++
+
+          sudo apt install -y gzip tar zstd
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Prepare tarball
+        run: |
+          meson subprojects download
+          meson setup -Ddist_subprojects=${{ matrix.dist-subprojects }} build
+          meson dist -C build --no-tests --formats gztar
+          mv build/meson-dist/*.tar.gz dist.tar.gz
+
+      - name: Repack tarball deterministically
+        run: |
+          mkdir dist
+          tar -C dist -xzf dist.tar.gz
+          rm dist.tar.gz
+          tar -C dist --mtime=@$(git show --no-patch --format=%ct) --sort=name --format=posix --mode=a=rX,u+w --owner=0 --group=0 --numeric-owner --pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime -cf dist.tar "$(ls dist)"
+          zstd --rm -T0 --ultra -20 dist.tar
+          mv dist.tar.zst mkxp-z.${{ matrix.artifact-name }}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: mkxp-z.${{ matrix.artifact-name }}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          archive: false
+
   build-windows-msys2:
     name: Windows MSYS2
     runs-on: windows-latest
     steps:
-      - uses: benjlevesque/short-sha@v2.2
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
         with:
           length: 7
@@ -68,11 +123,11 @@ jobs:
             mingw-w64-x86_64-gcc
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Restore from cache
         if: false
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ccache
           key: windows-msys2-x86_64-
@@ -102,7 +157,7 @@ jobs:
 
       - name: Save to cache
         if: false
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ccache
           key: windows-msys2-x86_64-${{ github.sha }}-${{ steps.build.outputs.time }}
@@ -168,7 +223,7 @@ jobs:
             clang: false # FIXME: x86_64 binaries built with Clang cause Ruby to crash at run time
             cache: true
     steps:
-      - uses: benjlevesque/short-sha@v2.2
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
         with:
           length: 7
@@ -197,11 +252,11 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Restore from cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ccache
           key: windows-cross-${{ matrix.arch_mkxpz }}-
@@ -234,7 +289,7 @@ jobs:
 
       - name: Save to cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ccache
           key: windows-cross-${{ matrix.arch_mkxpz }}-${{ github.sha }}-${{ steps.build.outputs.time }}
@@ -252,7 +307,7 @@ jobs:
           meson install -C build --no-rebuild --tags mkxp-z
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mkxp-z.windows.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
@@ -353,7 +408,7 @@ jobs:
             suite: xenial
             cache: true
     steps:
-      - uses: benjlevesque/short-sha@v2.2
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
         with:
           length: 7
@@ -373,25 +428,32 @@ jobs:
           fi
           echo "linker=$linker" >> "$GITHUB_ENV"
 
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up sysroot
+        run: |
           sudo apt install -y debootstrap gpg qemu-user-binfmt
+
+          keyrings="$(realpath keyrings)"
+
+          cd ${{ runner.temp }}
+
           if [ '${{ matrix.distro }}' = 'debian' ]
           then
-            gpg --no-default-keyring --keyring ./debian-ports.kbx --keyserver keyserver.ubuntu.com --recv-keys 0x66571731b5a71f91c501f3fdda1b2cea81dcbc61
-            sudo debootstrap --arch=${{ matrix.arch_debian }} --include=gcc,g++ --variant=minbase --keyring=./debian-ports.kbx --force-check-sig ${{ matrix.suite }} ~/sysroot http://snapshot.debian.org/archive/debian-ports/20190901T052020Z
+            sudo debootstrap --arch=${{ matrix.arch_debian }} --include=gcc,g++ --variant=minbase --keyring="$keyrings/debian-ports-2019.gpg" --force-check-sig ${{ matrix.suite }} sysroot http://snapshot.debian.org/archive/debian-ports/20190901T052020Z
           elif [ '${{ matrix.distro }}' = 'raspbian' ]
           then
             sudo apt install -y curl
-            gpg --no-default-keyring --keyring ./raspbian.kbx --keyserver keyserver.ubuntu.com --recv-keys 0xa0da38d0d76e8b5d638872819165938d90fddd2e
-            if curl --retry 5 -fIL http://raspbian.raspberrypi.org/raspbian/dists/${{ matrix.suite }}/Release
+            if curl --retry 5 -fIL http://raspbian.raspberrypi.org/raspbian/dists/${{ matrix.suite }}/InRelease
             then
               repo=http://raspbian.raspberrypi.org/raspbian
             else
               repo=http://legacy.raspbian.org/raspbian
             fi
-            sudo debootstrap --arch=${{ matrix.arch_debian }} --include=gcc,g++ --variant=minbase --keyring=./raspbian.kbx --force-check-sig ${{ matrix.suite }} ~/sysroot $repo
+            sudo debootstrap --arch=${{ matrix.arch_debian }} --include=gcc,g++ --variant=minbase --keyring="$keyrings/raspbian.gpg" --force-check-sig ${{ matrix.suite }} sysroot $repo
           elif [ '${{ matrix.distro }}' = 'ubuntu' ]
           then
-            sudo apt install -y ubuntu-keyring
             if [ '${{ matrix.cpu-family }}' = 'x86' ] || [ '${{ matrix.cpu-family }}' = 'x86_64' ]
             then
               repo=http://archive.ubuntu.com/ubuntu
@@ -400,26 +462,26 @@ jobs:
             fi
             if [ '${{ matrix.suite }}' = 'xenial' ] || [ '${{ matrix.suite }}' = 'bionic' ]
             then
-              sudo debootstrap --arch=${{ matrix.arch_debian }} --variant=minbase --keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg --force-check-sig ${{ matrix.suite }} ~/sysroot $repo
-              gpg --no-default-keyring --keyring ./ubuntu-toolchain-r.kbx --keyserver keyserver.ubuntu.com --recv-keys 0xc8ec952e2a0e1fbdc5090f6a2c277a0a352154e5
-              gpg --no-default-keyring --keyring ./ubuntu-toolchain-r.kbx --export --output ubuntu-toolchain-r.gpg
-              sudo mv ubuntu-toolchain-r.gpg ~/sysroot/
-              echo "deb $repo ${{ matrix.suite }}-updates main" | sudo tee -a ~/sysroot/etc/apt/sources.list > /dev/null
-              echo 'deb [signed-by=/ubuntu-toolchain-r.gpg] http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu ${{ matrix.suite }} main' | sudo tee -a ~/sysroot/etc/apt/sources.list > /dev/null
+              sudo debootstrap --arch=${{ matrix.arch_debian }} --variant=minbase --keyring="$keyrings/ubuntu.gpg" --force-check-sig ${{ matrix.suite }} sysroot $repo
+              sudo cp "$keyrings/ubuntu-toolchain-r.gpg" sysroot/
+              echo "deb $repo ${{ matrix.suite }}-updates main" | sudo tee -a sysroot/etc/apt/sources.list > /dev/null
+              echo 'deb [signed-by=/ubuntu-toolchain-r.gpg] http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu ${{ matrix.suite }} main' | sudo tee -a sysroot/etc/apt/sources.list > /dev/null
             else
-              sudo debootstrap --arch=${{ matrix.arch_debian }} --include=gcc,g++ --variant=minbase --keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg --force-check-sig ${{ matrix.suite }} ~/sysroot $repo
+              sudo debootstrap --arch=${{ matrix.arch_debian }} --include=gcc,g++ --variant=minbase --keyring="$keyrings/ubuntu.gpg" --force-check-sig ${{ matrix.suite }} sysroot $repo
             fi
           fi
+
           fs_spec=$(od -N 32 -x /dev/urandom | cut -b 9- | tr -d ' \n') # 64 random lowercase hexadecimal digits
-          sudo mount -t devtmpfs $fs_spec ~/sysroot/dev
-          sudo mount -t devpts $fs_spec ~/sysroot/dev/pts
-          sudo mount -t tmpfs $fs_spec ~/sysroot/dev/shm
-          sudo mount -t proc $fs_spec ~/sysroot/proc
-          sudo mount -t tmpfs $fs_spec ~/sysroot/tmp
-          sudo mount -t sysfs $fs_spec ~/sysroot/sys
-          sudo rm -f ~/sysroot/etc/resolv.conf
-          sudo cp /etc/resolv.conf ~/sysroot/etc/
-          PATH=/usr/sbin:/usr/bin:/sbin:/bin sudo chroot ~/sysroot /bin/bash -eo pipefail << 'EOF'
+          sudo mount -t devtmpfs $fs_spec sysroot/dev
+          sudo mount -t devpts $fs_spec sysroot/dev/pts
+          sudo mount -t tmpfs $fs_spec sysroot/dev/shm
+          sudo mount -t proc $fs_spec sysroot/proc
+          sudo mount -t tmpfs $fs_spec sysroot/tmp
+          sudo mount -t sysfs $fs_spec sysroot/sys
+          sudo rm -f sysroot/etc/resolv.conf
+          sudo cp /etc/resolv.conf sysroot/etc/
+
+          PATH=/usr/sbin:/usr/bin:/sbin:/bin sudo chroot sysroot /bin/bash -eo pipefail << 'EOF'
             if [ -f /ubuntu-toolchain-r.gpg ]
             then
               apt update
@@ -427,14 +489,12 @@ jobs:
             fi
             find /lib /usr/include /usr/lib -type l -exec ln -srf {} {} \; # Convert absolute symbolic links into relative symbolic links so that they still work after we exit the chroot jail
           EOF
-          grep "^$fs_spec " /proc/mounts | cut -d ' ' -f 2 | sort -r | tr '\n' '\0' | xargs -0 -n 1 printf '%b\0' | xargs -0 -n 1 sudo umount
 
-      - name: Checkout repository
-        uses: actions/checkout@v5
+          grep "^$fs_spec " /proc/mounts | cut -d ' ' -f 2 | sort -r | tr '\n' '\0' | xargs -0 -n 1 printf '%b\0' | xargs -0 -n 1 sudo umount
 
       - name: Restore from cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ccache
           key: ${{ matrix.distro }}-${{ matrix.suite }}-${{ matrix.arch_mkxpz }}-
@@ -462,11 +522,11 @@ jobs:
           then
             abi_flag=", '$abi_flag'"
           fi
-          sed 's/^  //' << EOF | tee -a ~/cross.toml
+          sed 's/^  //' << EOF | tee -a ${{ runner.temp }}/cross.toml
             [binaries]
-            c = ['ccache', 'clang', '--sysroot=$(realpath ~/sysroot)', '--target=$target'$abi_flag]
+            c = ['ccache', 'clang', '--sysroot=${{ runner.temp }}/sysroot', '--target=$target'$abi_flag]
             c_ld = '$linker'
-            cpp = ['ccache', 'clang++', '--sysroot=$(realpath ~/sysroot)', '--target=$target'$abi_flag]
+            cpp = ['ccache', 'clang++', '--sysroot=${{ runner.temp }}/sysroot', '--target=$target'$abi_flag]
             cpp_ld = '$linker'
             ar = 'llvm-ar'
             strip = 'llvm-strip'
@@ -484,7 +544,7 @@ jobs:
           else
             arm_neon=disabled
           fi
-          meson setup --prefix "$(pwd)/build/artifact" --cross-file ~/cross.toml -Darm_neon=$arm_neon --buildtype release -Dstrip=true -Db_lto=true build
+          meson setup --prefix "$(pwd)/build/artifact" --cross-file ${{ runner.temp }}/cross.toml -Darm_neon=$arm_neon --buildtype release -Dstrip=true -Db_lto=true build
 
       - name: Build
         id: build
@@ -496,7 +556,7 @@ jobs:
 
       - name: Save to cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ccache
           key: ${{ matrix.distro }}-${{ matrix.suite }}-${{ matrix.arch_mkxpz }}-${{ github.sha }}-${{ steps.build.outputs.time }}
@@ -514,7 +574,7 @@ jobs:
           meson install -C build --no-rebuild --tags mkxp-z
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mkxp-z.linux.${{ matrix.distro }}.${{ matrix.suite }}.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
@@ -527,7 +587,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: benjlevesque/short-sha@v2.2
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
         with:
           length: 7
@@ -539,11 +599,11 @@ jobs:
           apt install -y gcc g++
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Restore from cache
         if: false
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ccache
           key: debian-trixie-x86_64-
@@ -570,7 +630,7 @@ jobs:
 
       - name: Save to cache
         if: false
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ccache
           key: debian-trixie-x86_64-${{ github.sha }}-${{ steps.build.outputs.time }}
@@ -586,6 +646,12 @@ jobs:
       - name: Prepare artifact
         run: |
           meson install -C build --no-rebuild --tags mkxp-z
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mkxp-z.linux.debian.trixie.x86_64.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          path: build/artifact
 
   build-linux-cross-container:
     name: Debian Trixie ${{matrix.arch_mkxpz}}
@@ -623,7 +689,7 @@ jobs:
             arch_gcc: riscv64-linux-gnu
             cache: false
     steps:
-      - uses: benjlevesque/short-sha@v2.2
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
         with:
           length: 7
@@ -637,11 +703,11 @@ jobs:
           apt install -y gcc-${{matrix.arch_gcc}} g++-${{matrix.arch_gcc}}
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Restore from cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ccache
           key: debian-trixie-${{ matrix.arch_mkxpz }}-
@@ -674,7 +740,7 @@ jobs:
 
       - name: Save to cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ccache
           key: debian-trixie-${{ matrix.arch_mkxpz }}-${{ github.sha }}-${{ steps.build.outputs.time }}
@@ -690,6 +756,12 @@ jobs:
       - name: Prepare artifact
         run: |
           meson install -C build --no-rebuild --tags mkxp-z
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mkxp-z.linux.debian.trixie.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          path: build/artifact
 
   build-freebsd:
     name: FreeBSD ${{ matrix.arch }}
@@ -744,84 +816,44 @@ jobs:
             endian: little
             cache: false
     steps:
-      - uses: benjlevesque/short-sha@v2.2
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
         with:
           length: 7
 
       - name: Install dependencies
-        shell: bash
         run: |
           sudo apt update
           sudo apt install -y bison ccache cmake diffutils git make meson ruby
           sudo apt install -y clang lld llvm
 
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up sysroot
+        shell: bash
+        run: |
           sudo apt install -y bind9-dnsutils curl jq openssl tar zstd
+
           protocol=http
           host=pkg.freebsd.org
           abi_version=13
           release=release_4
-          sed 's/^  //' << 'EOF' | python - "$protocol" "$host" | while read mirror
-            import random
-            import re
-            import subprocess
-            import sys
-            import typing
-            class FenwickTree:
-              _tree: typing.List[int]
-              def __init__(self, n: int) -> None: # Creates a new Fenwick tree containing n items, all of which are initially zero.
-                self._tree = [0] * n
-              def cumsum(self, index: int) -> int: # Returns the sum of all items up to and including the given index (zero-based) in O(log n) time.
-                cumsum = 0
-                while index >= 0:
-                  cumsum += self._tree[index]
-                  index &= index + 1
-                  index -= 1
-                return cumsum
-              def set(self, index: int, value: int) -> None: # Sets the item at the given index (zero-based) to the given value in O(log n) time.
-                delta = value - (self.cumsum(index) if index == 0 else self.cumsum(index) - self.cumsum(index - 1))
-                while index < len(self._tree):
-                  self._tree[index] += delta
-                  index |= index + 1
-              def cumsum_bisect_right(self, target_cumsum: int) -> int: # Returns the smallest nonnegative integer less than n such that self.cumsum(self.cumsum_bisect_right(target_cumsum)) is greater than target_cumsum, in O(log n) time. If there is no such integer, returns n instead. All items must be nonnegative, otherwise the behavior is undefined.
-                rank = 0
-                cumsum = 0
-                power_of_2 = 1 << (len(self._tree).bit_length() - 1)
-                while power_of_2 > 0:
-                  index = (rank | power_of_2) - 1
-                  if index < len(self._tree) and cumsum + self._tree[index] <= target_cumsum:
-                    cumsum += self._tree[index]
-                    rank |= power_of_2
-                  power_of_2 >>= 1
-                return rank
-            pattern = re.compile(r'([0-9]+) ([0-9]+) ([0-9]+) ([^ ]+)\.')
-            entries_by_priority = {}
-            for raw_entry in subprocess.run(['dig', '+short', '_' + sys.argv[1] + '._tcp.' + sys.argv[2], 'SRV'], check=True, stdout=subprocess.PIPE).stdout.decode('UTF-8').splitlines():
-              match = pattern.fullmatch(raw_entry)
-              if match is None:
-                continue
-              priority = int(match[1])
-              weight = int(match[2])
-              port = int(match[3])
-              hostname = match[4]
-              entries_by_priority.setdefault(priority, []).append({'weight': weight, 'port': port, 'hostname': hostname})
-            for priority in sorted(entries_by_priority.keys()): # Sort entries with different priorities in ascending order of priority
-              entries = entries_by_priority[priority]
-              weights = FenwickTree(len(entries))
-              for i, entry in enumerate(entries):
-                weights.set(i, entry['weight'])
-              for pivot_index in range(len(entries)): # Perform a weighted shuffle on entries with the same priority (higher weight is more likely to be chosen earlier)
-                weights_total = weights.cumsum(len(entries) - 1)
-                random_index = random.randrange(pivot_index, len(entries)) if weights_total == 0 else weights.cumsum_bisect_right(random.randrange(weights_total))
-                print(sys.argv[1] + '://' + entries[random_index]['hostname'] + ':' + str(entries[random_index]['port']))
-                entries[random_index] = entries[pivot_index]
-                weights.set(random_index, entries[random_index]['weight'])
-                weights.set(pivot_index, 0)
-            print(sys.argv[1] + '://' + sys.argv[2])
-          EOF
+          mirror_selector="$(realpath freebsd-mirror-selector.py)"
+
+          cd ${{ runner.temp }}
+          pushd .
+
+          python "$mirror_selector" "$protocol" "$host" | while read mirror
           do
             echo "FreeBSD mirror: $mirror"
             repo="${mirror}/FreeBSD:${abi_version}:amd64/${release}"
+
+            popd
+            rm -rf sysroot-download
+            mkdir sysroot-download
+            pushd sysroot-download
+
             if ! curl --retry 5 -Lo data.pkg "$repo/data.pkg"
             then
               continue
@@ -851,28 +883,33 @@ jobs:
             then
               continue
             fi
+
             tar -xf sysroot.pkg --zstd
-            mv usr/local/freebsd-sysroot/${{ matrix.arch }} ~/sysroot
+            dir="$(realpath usr/local/freebsd-sysroot/${{ matrix.arch }})"
+            popd
+            mv "$dir" sysroot
+            pushd .
             break
           done
-          if [ ! -d ~/sysroot ]
+
+          popd
+
+          if [ ! -d sysroot ]
           then
             echo '::error::Failed to download the sysroot'
             exit 1
           fi
-          version=$(printf '#include <sys/param.h>\n__FreeBSD_version\n' | clang "--sysroot=$(realpath ~/sysroot)" -E - | tail -n 1)
+
+          version=$(printf '#include <sys/param.h>\n__FreeBSD_version\n' | clang "--sysroot=$(realpath sysroot)" -E - | tail -n 1)
           version_major=$((version / 100000))
           version_minor=$(((version / 1000) % 100))
           target="${{ matrix.cpu }}-unknown-freebsd$version_major.$version_minor${{ case(matrix.cpu-family == 'arm', '-gnueabihf', '') }}"
           echo "Target: $target"
           echo "target=$target" >> "$GITHUB_ENV"
 
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
       - name: Restore from cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ccache
           key: freebsd-${{ matrix.arch }}-
@@ -887,11 +924,11 @@ jobs:
 
       - name: Configure
         run: |
-          sed 's/^  //' << EOF | tee -a ~/cross.toml
+          sed 's/^  //' << EOF | tee -a ${{ runner.temp }}/cross.toml
             [binaries]
-            c = ['ccache', 'clang', '--sysroot=$(realpath ~/sysroot)', '--target=$target']
+            c = ['ccache', 'clang', '--sysroot=${{ runner.temp }}/sysroot', '--target=$target']
             c_ld = 'lld'
-            cpp = ['ccache', 'clang++', '--sysroot=$(realpath ~/sysroot)', '--target=$target']
+            cpp = ['ccache', 'clang++', '--sysroot=${{ runner.temp }}/sysroot', '--target=$target']
             cpp_ld = 'lld'
             ar = 'llvm-ar'
             strip = 'llvm-strip'
@@ -910,7 +947,7 @@ jobs:
           else
             lto=true
           fi
-          meson setup --prefix "$(pwd)/build/artifact" --cross-file ~/cross.toml --buildtype release -Dstrip=true -Db_lto=$lto build
+          meson setup --prefix "$(pwd)/build/artifact" --cross-file ${{ runner.temp }}/cross.toml --buildtype release -Dstrip=true -Db_lto=$lto build
 
       - name: Build
         id: build
@@ -922,7 +959,7 @@ jobs:
 
       - name: Save to cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ccache
           key: freebsd-${{ matrix.arch }}-${{ github.sha }}-${{ steps.build.outputs.time }}
@@ -940,7 +977,7 @@ jobs:
           meson install -C build --no-rebuild --tags mkxp-z
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mkxp-z.freebsd.${{ matrix.arch }}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
@@ -957,22 +994,21 @@ jobs:
           - arch_mkxpz: x86_64
             cache: true
     steps:
-      - uses: benjlevesque/short-sha@v2.2
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
         with:
           length: 7
 
       - name: Install dependencies
         run: |
-          brew uninstall -f --ignore-dependencies bison ccache cmake diffutils git make meson ruby
           brew install -q bison ccache cmake diffutils git make meson ruby
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Restore from cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ccache
           key: macos-${{ matrix.arch_mkxpz }}-
@@ -999,7 +1035,7 @@ jobs:
 
       - name: Save to cache
         if: ${{ matrix.cache }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ccache
           key: macos-${{ matrix.arch_mkxpz }}-${{ github.sha }}-${{ steps.build.outputs.time }}
@@ -1019,13 +1055,13 @@ jobs:
           meson install -C build --no-rebuild --tags mkxp-z
 
       - name: Upload standalone artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mkxp-z.macos.${{ matrix.arch_mkxpz }}.standalone.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
 
       - name: Upload bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mkxp-z.macos.${{ matrix.arch_mkxpz }}.app.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact-bundle
@@ -1035,31 +1071,31 @@ jobs:
     runs-on: macos-latest
     needs: build-macos
     steps:
-      - uses: benjlevesque/short-sha@v2.2
+      - uses: benjlevesque/short-sha@v4.0
         id: short-sha
         with:
           length: 7
 
       - name: Download arm64 standalone artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: mkxp-z.macos.arm64.standalone.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: artifact-arm64
 
       - name: Download arm64 bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: mkxp-z.macos.arm64.app.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: artifact-bundle-arm64
 
       - name: Download x86_64 standalone artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: mkxp-z.macos.x86_64.standalone.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: artifact-x86_64
 
       - name: Download x86_64 bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: mkxp-z.macos.x86_64.app.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: artifact-bundle-x86_64
@@ -1080,13 +1116,13 @@ jobs:
           mv bundle_mkxp-z artifact-bundle/mkxp-z.universal.app/Contents/MacOS/
 
       - name: Upload standalone artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mkxp-z.macos.universal.standalone.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: artifact
 
       - name: Upload bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mkxp-z.macos.universal.app.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: artifact-bundle

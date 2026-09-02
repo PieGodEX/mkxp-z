@@ -19,30 +19,22 @@ null_dep = dependency('', required: false)
 
 compilers = {'cpp': meson.get_compiler('cpp')}
 
-git_hash_file = vcs_tag(
-    input: 'src/git-hash.h.in',
-    output: 'git-hash.h',
-    command: [(meson.version().version_compare('>=1.10.0') ? find_program('git').cmd_array() : find_program('git')), 'rev-parse', '--short=7', 'HEAD'],
-    fallback: 'unknown',
-)
-
 global_sources = []
-global_dependencies = [declare_dependency(sources: git_hash_file)]
+global_dependencies = []
 global_include_dirs = []
 global_args = []
 global_cpp_args = []
 global_objc_args = ['-fobjc-arc', '-fobjc-weak']
 global_objcpp_args = []
 global_link_args = []
-c_std = 'gnu11'
-cpp_std = 'gnu++14'
+c_std = 'gnu11,c11'
+cpp_std = 'gnu++14,c++14'
 
 common = subproject('common', default_options: {'c_std': c_std, 'cpp_std': cpp_std})
 cmake = import('cmake')
 python = common.get_variable('python')
 embedtool = common.get_variable('embedtool')
-quotetool_args = common.get_variable('quotetool_args')
-quotetool_command = common.get_variable('quotetool_command')
+quotetool = common.get_variable('quotetool')
 sonametool = common.get_variable('sonametool')
 
 sizeof = {'void*': compilers['cpp'].sizeof('void*'),
@@ -312,7 +304,6 @@ if openal.type_name() == 'internal'
 endif
 summary('ANGLE', have_angle, bool_yn: true)
 if have_angle
-    summary('ANGLE Direct3D 9 backend', have_angle_direct3d9, bool_yn: true)
     summary('ANGLE Direct3D 11 backend', have_angle_direct3d11, bool_yn: true)
     summary('ANGLE Metal backend', have_angle_metal, bool_yn: true)
     summary('ANGLE null backend', have_angle_null, bool_yn: true)

@@ -48,14 +48,14 @@ endforeach
 cmake_base_options = {
     'CMAKE_POLICY_VERSION_MINIMUM': '3.10',
     'CMAKE_OSX_SYSROOT': '/nonexistent',
-    'CMAKE_C_STANDARD': c_std.replace('c', '').replace('gnu', ''),
-    'CMAKE_CXX_STANDARD': cpp_std.replace('c++', '').replace('gnu++', ''),
+    'CMAKE_C_STANDARD': common.get_variable('c_std').replace('-std=c', '').replace('-std=gnu', ''),
+    'CMAKE_CXX_STANDARD': common.get_variable('cpp_std').replace('-std=c++', '').replace('-std=gnu++', ''),
     'CMAKE_C_BYTE_ORDER': host_endian == 'big' ? 'BIG_ENDIAN' : 'LITTLE_ENDIAN',
     'CMAKE_CXX_BYTE_ORDER': host_endian == 'big' ? 'BIG_ENDIAN' : 'LITTLE_ENDIAN',
     'CMAKE_OBJC_BYTE_ORDER': host_endian == 'big' ? 'BIG_ENDIAN' : 'LITTLE_ENDIAN',
     'CMAKE_OBJCXX_BYTE_ORDER': host_endian == 'big' ? 'BIG_ENDIAN' : 'LITTLE_ENDIAN',
     'CMAKE_BUILD_TYPE': 'Custom',
-    'CMAKE_EXE_LINKER_FLAGS': run_command(quotetool_args, common.get_variable('c_linker_flags'), check: true).stdout().strip(),
+    'CMAKE_EXE_LINKER_FLAGS': run_command(quotetool, common.get_variable('c_linker_flags'), check: true).stdout().strip(),
 }
 
 cmake_override_options = {
@@ -67,6 +67,35 @@ meson_base_options = cmake_override_options + {
     'c_std': c_std,
     'cpp_std': cpp_std,
 }
+
+git_hash_fallback = ''
+foreach line : import('fs').read('../git-hash').splitlines()
+    line = line.strip()
+    if line != '' and not line.startswith('#')
+        git_hash_fallback = line.substring(0, 7)
+    endif
+endforeach
+distscript_vcs_command = []
+if git_hash_fallback != ''
+    git_hash_file = configure_file(
+        input: 'git-hash.h.in',
+        output: 'git-hash.h',
+        configuration: {
+            'VCS_TAG': git_hash_fallback,
+        },
+    )
+else
+    git = meson.version().version_compare('>=1.10.0') ? find_program('git').cmd_array() : find_program('git')
+    git_hash_file = vcs_tag(
+        input: 'git-hash.h.in',
+        output: 'git-hash.h',
+        command: [git, 'rev-parse', '--short=7', 'HEAD'],
+        fallback: 'unknown',
+    )
+    distscript_vcs_command = [git, 'rev-parse', 'HEAD']
+endif
+meson.add_dist_script(python, files('../distscript.py'), get_option('dist_subprojects'), distscript_vcs_command)
+global_dependencies += declare_dependency(sources: git_hash_file)
 
 gl = dependency('gl', allow_fallback: false, required: get_option('gl_system').disable_auto_if(default_system_disabled).enable_auto_if(default_system_enabled))
 if not gl.found()
@@ -131,7 +160,7 @@ physfs = dependency('physfs', allow_fallback: false, required: get_option('physf
 if not physfs.found()
     physfs_options = cmake.subproject_options()
     physfs_options.add_cmake_defines(cmake_base_options + {
-        'CMAKE_OBJC_FLAGS': run_command(quotetool_args, '-fno-objc-arc', '-fno-objc-weak', check: true).stdout().strip(),
+        'CMAKE_OBJC_FLAGS': run_command(quotetool, '-fno-objc-arc', '-fno-objc-weak', check: true).stdout().strip(),
         'PHYSFS_BUILD_STATIC': true,
         'PHYSFS_BUILD_SHARED': false,
         'PHYSFS_BUILD_TEST': false,
@@ -315,8 +344,8 @@ if not sdl2.found() or not sdl2main.found()
                 spirv_tools_options = cmake.subproject_options()
                 spirv_tools_options.add_cmake_defines(cmake_base_options + {
                     'CMAKE_CXX_STANDARD': 17,
-                    'CMAKE_C_FLAGS': run_command(quotetool_args, '-I' + spirv_headers_source_dir / 'include', check: true).stdout().strip(),
-                    'CMAKE_CXX_FLAGS': run_command(quotetool_args, '-I' + spirv_headers_source_dir / 'include', check: true).stdout().strip(),
+                    'CMAKE_C_FLAGS': run_command(quotetool, '-I' + spirv_headers_source_dir / 'include', check: true).stdout().strip(),
+                    'CMAKE_CXX_FLAGS': run_command(quotetool, '-I' + spirv_headers_source_dir / 'include', check: true).stdout().strip(),
                     'SPIRV-Headers_SOURCE_DIR': spirv_headers_source_dir,
                     'BUILD_SHARED_LIBS': false,
                     'BUILD_TESTING': false,
@@ -356,13 +385,6 @@ if not sdl2.found() or not sdl2main.found()
     endif
 
     if have_angle
-        if get_option('angle_direct3d9').disabled()
-            angle_direct3d9 = 'disabled'
-        elif get_option('angle_direct3d9').enabled()
-            angle_direct3d9 = 'enabled'
-        else
-            angle_direct3d9 = 'auto'
-        endif
         if get_option('angle_direct3d11').disabled()
             angle_direct3d11 = 'disabled'
         elif get_option('angle_direct3d11').enabled()
@@ -392,22 +414,17 @@ if not sdl2.found() or not sdl2main.found()
             angle_vulkan = 'auto'
         endif
         angle = subproject('angle', default_options: meson_base_options + {
-            'direct3d9': angle_direct3d9,
             'direct3d11': angle_direct3d11,
             'metal': angle_metal,
             'null': angle_null,
             'opengl': 'disabled',
             'vulkan': have_angle_vulkan ? angle_vulkan : 'disabled',
         })
-        have_angle_direct3d9 = angle.get_variable('have_direct3d9')
         have_angle_direct3d11 = angle.get_variable('have_direct3d11')
         have_angle_metal = angle.get_variable('have_metal')
         have_angle_null = angle.get_variable('have_null')
         have_angle_vulkan = angle.get_variable('have_vulkan')
         global_args += '-DMKXPZ_HAVE_ANGLE'
-        if have_angle_direct3d9
-            global_args += '-DMKXPZ_HAVE_ANGLE_DIRECT3D9'
-        endif
         if have_angle_direct3d11
             global_args += '-DMKXPZ_HAVE_ANGLE_DIRECT3D11'
         endif
@@ -705,8 +722,8 @@ if not vorbis.found()
     endif
     vorbis_options = cmake.subproject_options()
     vorbis_options.add_cmake_defines(cmake_base_options + {
-        'CMAKE_C_FLAGS': run_command(quotetool_args, vorbis_internal_cflags + vorbis_external_cflags, check: true).stdout().strip(),
-        'CMAKE_CXX_FLAGS': run_command(quotetool_args, vorbis_internal_cflags + vorbis_external_cflags, check: true).stdout().strip(),
+        'CMAKE_C_FLAGS': run_command(quotetool, vorbis_internal_cflags + vorbis_external_cflags, check: true).stdout().strip(),
+        'CMAKE_CXX_FLAGS': run_command(quotetool, vorbis_internal_cflags + vorbis_external_cflags, check: true).stdout().strip(),
         'BUILD_SHARED_LIBS': false,
         'BUILD_TESTING': false,
         'BUILD_FRAMEWORK': false,
@@ -740,8 +757,8 @@ if not sdl2_sound.found()
     endif
     sdl2_sound_options = cmake.subproject_options()
     sdl2_sound_options.add_cmake_defines(cmake_base_options + {
-        'CMAKE_C_FLAGS': run_command(quotetool_args, sdl2_sound_internal_cflags + sdl2_sound_external_cflags, check: true).stdout().strip(),
-        'CMAKE_CXX_FLAGS': run_command(quotetool_args, sdl2_sound_internal_cflags + sdl2_sound_external_cflags, check: true).stdout().strip(),
+        'CMAKE_C_FLAGS': run_command(quotetool, sdl2_sound_internal_cflags + sdl2_sound_external_cflags, check: true).stdout().strip(),
+        'CMAKE_CXX_FLAGS': run_command(quotetool, sdl2_sound_internal_cflags + sdl2_sound_external_cflags, check: true).stdout().strip(),
         'SDLSOUND_BUILD_SHARED': false,
         'SDLSOUND_BUILD_TEST': false,
     })
@@ -790,8 +807,8 @@ if not sdl2_ttf.found()
     endif
     sdl2_ttf_options = cmake.subproject_options()
     sdl2_ttf_options.add_cmake_defines(cmake_base_options + {
-        'CMAKE_C_FLAGS': run_command(quotetool_args, sdl2_ttf_internal_cflags + sdl2_ttf_external_cflags, check: true).stdout().strip(),
-        'CMAKE_CXX_FLAGS': run_command(quotetool_args, sdl2_ttf_internal_cflags + sdl2_ttf_external_cflags, check: true).stdout().strip(),
+        'CMAKE_C_FLAGS': run_command(quotetool, sdl2_ttf_internal_cflags + sdl2_ttf_external_cflags, check: true).stdout().strip(),
+        'CMAKE_CXX_FLAGS': run_command(quotetool, sdl2_ttf_internal_cflags + sdl2_ttf_external_cflags, check: true).stdout().strip(),
         'BUILD_SHARED_LIBS': false,
         'BUILD_TESTING': false,
     })
@@ -1000,7 +1017,7 @@ if not theora.found()
 endif
 global_dependencies += theora
 
-theoraplay_options = meson_base_options + {'thread': 'disabled'}
+theoraplay_options = meson_base_options
 theoraplay = subproject('theoraplay', default_options: theoraplay_options).get_variable('theoraplay')
 if not subproject('theoraplay', default_options: theoraplay_options).get_variable('have_thread')
     global_args += '-DMKXPZ_THEORAPLAY_NO_THREAD'
@@ -1018,8 +1035,8 @@ if not sdl2_image.found()
     endif
     sdl2_image_options = cmake.subproject_options()
     sdl2_image_options.add_cmake_defines(cmake_base_options + {
-        'CMAKE_C_FLAGS': run_command(quotetool_args, sdl2_image_internal_cflags + sdl2_image_external_cflags, check: true).stdout().strip(),
-        'CMAKE_CXX_FLAGS': run_command(quotetool_args, sdl2_image_internal_cflags + sdl2_image_external_cflags, check: true).stdout().strip(),
+        'CMAKE_C_FLAGS': run_command(quotetool, sdl2_image_internal_cflags + sdl2_image_external_cflags, check: true).stdout().strip(),
+        'CMAKE_CXX_FLAGS': run_command(quotetool, sdl2_image_internal_cflags + sdl2_image_external_cflags, check: true).stdout().strip(),
         'BUILD_SHARED_LIBS': false,
         'SDL2IMAGE_JPG_SAVE': true,
         'SDL2IMAGE_PNG_SAVE': true,
@@ -1069,8 +1086,8 @@ if not fluidsynth.found()
     endif
     fluidsynth_options = cmake.subproject_options()
     fluidsynth_options.add_cmake_defines(cmake_base_options + {
-        'CMAKE_C_FLAGS': run_command(quotetool_args, fluidsynth_internal_cflags + fluidsynth_external_cflags, check: true).stdout().strip(),
-        'CMAKE_CXX_FLAGS': run_command(quotetool_args, fluidsynth_internal_cflags + fluidsynth_external_cflags, check: true).stdout().strip(),
+        'CMAKE_C_FLAGS': run_command(quotetool, fluidsynth_internal_cflags + fluidsynth_external_cflags, check: true).stdout().strip(),
+        'CMAKE_CXX_FLAGS': run_command(quotetool, fluidsynth_internal_cflags + fluidsynth_external_cflags, check: true).stdout().strip(),
         'GCEM_INCLUDE_DIR': gcem_include_dir,
         'BUILD_SHARED_LIBS': false,
         'enable-alsa': false,
@@ -1172,9 +1189,9 @@ if not ruby.found()
         ruby_external_ldflags += libffi_libs
     endif
     ruby_options = meson_base_options + {
-        'cflags': run_command(quotetool_args, ruby_internal_cflags + ruby_external_cflags, check: true).stdout().strip(),
-        'cppflags': run_command(quotetool_args, ruby_internal_cflags + ruby_external_cflags, check: true).stdout().strip(),
-        'ldflags': run_command(quotetool_args, ruby_internal_ldflags + ruby_external_ldflags, check: true).stdout().strip()
+        'cflags': run_command(quotetool, ruby_internal_cflags + ruby_external_cflags, check: true).stdout().strip(),
+        'cppflags': run_command(quotetool, ruby_internal_cflags + ruby_external_cflags, check: true).stdout().strip(),
+        'ldflags': run_command(quotetool, ruby_internal_ldflags + ruby_external_ldflags, check: true).stdout().strip()
     }
     ruby = subproject('ruby-' + get_option('mri_version'), default_options: ruby_options).get_variable('ruby')
     ruby_build_dir = subproject('ruby-' + get_option('mri_version'), default_options: ruby_options).get_variable('ruby_build_dir')

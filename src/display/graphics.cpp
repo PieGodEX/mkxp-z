@@ -60,6 +60,7 @@
 
 #include <algorithm>
 #include <errno.h>
+#include <functional>
 #include <sys/time.h>
 #include <unistd.h>
 #include <time.h>
@@ -797,6 +798,8 @@ private:
     }
 };
 
+std::function<void ()> mkxp_angle_direct3d_resize_callback = nullptr;
+
 struct GraphicsPrivate {
     /* Screen resolution, ie. the resolution at which
      * RGSS renders at (settable with Graphics.resize_screen).
@@ -1031,17 +1034,15 @@ private:
         GLMeta::blitBeginScreen(screenSize, scaleIsSpecial);
         GLMeta::blitSource(source, scaleIsSpecial);
 
-        // We need to repaint the screen twice after the game window's size changes if we're using ANGLE's Direct3D 11 backend (probably because of double buffering).
-        // For other ANGLE backends, or (usually) when not using ANGLE, this is not required, but it causes no harm if we do it anyways.
-        for (size_t repaintCount = sizeChanged.clear() ? 2 : 1; repaintCount > 0;) {
+        for (size_t repaintCount = 1; repaintCount-- > 0;) {
+            mkxp_angle_direct3d_resize_callback = [&]() {
+                // We need to repaint the screen twice after the game window's size changes if we're using one of ANGLE's Direct3D backends (probably because of double buffering).
+                repaintCount = 2;
+            };
             FBO::clear();
             metaBlitBufferFlippedScaled(args...);
             SDL_GL_SwapWindow(threadData->window);
-            if (sizeChanged.clear()) {
-                repaintCount = 2;
-            } else {
-                --repaintCount;
-            }
+            mkxp_angle_direct3d_resize_callback = nullptr;
         }
 
         GLMeta::blitEnd();
