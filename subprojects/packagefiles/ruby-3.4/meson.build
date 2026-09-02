@@ -5,9 +5,11 @@ find_program('cmp', required: true)
 cflags = subproject('common').get_variable('base_cflags')
 cppflags = subproject('common').get_variable('base_cppflags')
 
-# -std=gnu99 is needed with GCC 15 and higher (which default to gnu23), for Ruby versions that aren't valid C23.
-# Ruby versions that are valid C23 are 3.2.9+, 3.3.9+, 3.4.5+, and 4.0.0+.
-cflags += '-std=gnu99'
+# Ruby versions older than 3.2 don't support address sanitizer
+if meson.get_compiler('c').has_argument('-fno-sanitize=address')
+    cflags += '-fno-sanitize=address'
+    cppflags += '-fno-sanitize=address'
+endif
 
 cflags += get_option('c_args')
 cppflags += get_option('cpp_args')
@@ -18,19 +20,15 @@ ldflags += get_option('c_link_args')
 
 srcdir = meson.project_source_root()
 if build_machine.system() in ['windows', 'cygwin']
-    srcdir = run_command(find_program('cygpath'), '-u', srcdir, check: true).stdout().strip()
+    srcdir = run_command(subproject('common').get_variable('cygpath'), '-u', srcdir, check: true).stdout().strip()
 endif
 
 destdir = meson.project_build_root() / 'dist'
 if build_machine.system() in ['windows', 'cygwin']
-    destdir = run_command(find_program('cygpath'), '-m', destdir, check: true).stdout().strip()
+    destdir = run_command(subproject('common').get_variable('cygpath'), '-m', destdir, check: true).stdout().strip()
 endif
 
-baseruby = find_program('ruby').full_path()
-if build_machine.system() in ['windows', 'cygwin']
-    baseruby = run_command(find_program('cygpath'), '-u', baseruby, check: true).stdout().strip()
-endif
-baseruby = run_command(subproject('common').get_variable('quotetool_command'), baseruby, check: true).stdout().strip()
+baseruby = run_command(subproject('common').get_variable('quotetool'), (meson.version().version_compare('>=1.10.0') ? find_program('ruby').cmd_array() : find_program('ruby')), check: true).stdout().strip()
 
 ruby_deps = [
     dependency('libffi', required: true),
@@ -64,13 +62,20 @@ ruby = declare_dependency(
                 '--with-static-linked-ext',
                 '--disable-rubygems',
                 '--without-gmp',
-                'CC=' + run_command(subproject('common').get_variable('quotetool_command'), meson.get_compiler('c').cmd_array(), check: true).stdout().strip(),
-                'CXX=' + run_command(subproject('common').get_variable('quotetool_command'), meson.get_compiler('cpp').cmd_array(), check: true).stdout().strip(),
-                'AR=' + run_command(subproject('common').get_variable('quotetool_command'), find_program('ar'), check: true).stdout().strip(),
-                'RANLIB=' + run_command(subproject('common').get_variable('quotetool_command'), find_program('ranlib'), check: true).stdout().strip(),
-                'CFLAGS=' + run_command(subproject('common').get_variable('quotetool_args'), cflags, check: true).stdout().strip() + ' ' + get_option('cflags'),
-                'CXXFLAGS=' + run_command(subproject('common').get_variable('quotetool_args'), cppflags, check: true).stdout().strip() + ' ' + get_option('cppflags'),
-                'LDFLAGS=' + run_command(subproject('common').get_variable('quotetool_args'), ldflags, check: true).stdout().strip() + ' ' + get_option('ldflags'),
+                '--enable-mkmf-verbose',
+                'CC=' + run_command(subproject('common').get_variable('quotetool'), meson.get_compiler('c').cmd_array(), check: true).stdout().strip(),
+                'CXX=' + run_command(subproject('common').get_variable('quotetool'), meson.get_compiler('cpp').cmd_array(), check: true).stdout().strip(),
+                'AR=' + run_command(subproject('common').get_variable('quotetool'), subproject('common').get_variable('ar'), check: true).stdout().strip(),
+                'RANLIB=' + run_command(subproject('common').get_variable('quotetool'), subproject('common').get_variable('ranlib'), check: true).stdout().strip(),
+                'AS=false',
+                'LD=false',
+                'NM=false',
+                'OBJCOPY=false',
+                'OBJDUMP=false',
+                'STRIP=false',
+                'CFLAGS=' + run_command(subproject('common').get_variable('quotetool'), cflags, check: true).stdout().strip() + ' ' + get_option('cflags'),
+                'CXXFLAGS=' + run_command(subproject('common').get_variable('quotetool'), cppflags, check: true).stdout().strip() + ' ' + get_option('cppflags'),
+                'LDFLAGS=' + run_command(subproject('common').get_variable('quotetool'), ldflags, check: true).stdout().strip() + ' ' + get_option('ldflags'),
             ],
             cross_configure_options: [
                 '--host=@HOST@',
@@ -78,14 +83,23 @@ ruby = declare_dependency(
             ],
             env: {
                 'CONFIG_SITE': ' ',
-                'WINDRES': host_machine.system() in ['windows', 'cygwin'] ? run_command(subproject('common').get_variable('quotetool_command'), find_program('windres'), check: true).stdout().strip() : '',
-                'YACC': run_command(subproject('common').get_variable('quotetool_command'), find_program('bison'), check: true).stdout().strip(),
+                'MKXP_LIBGCC': meson.get_compiler('c').has_link_argument('-lgcc') ? '-lgcc' : '',
+                # Disable LTO while running link tests for Ruby extensions if the linker is LLD (LLVM linker) and we are building for 32-bit ARM.
+                # Otherwise, the link tests may fail due to https://github.com/llvm/llvm-project/issues/108262.
+                'MKXP_DISABLE_LTO_FOR_LINK_TESTS': (meson.get_compiler('c').get_linker_id().split('.')[-1] == 'lld' or meson.get_compiler('c').get_linker_id() == 'lld-link') and host_machine.cpu_family() == 'arm' ? 'yes' : 'no',
+                'DLLWRAP': 'false',
+                'WINDRES': run_command(subproject('common').get_variable('quotetool'), subproject('common').get_variable('windres'), check: true).stdout().strip(),
+                'YACC': run_command(subproject('common').get_variable('quotetool'), (meson.version().version_compare('>=1.10.0') ? find_program('bison').cmd_array() : find_program('bison')), check: true).stdout().strip(),
                 'ac_cv_func_crypt': 'no',
                 'ac_cv_func_crypt_r': 'no',
                 'ac_cv_header_crypt_h': 'no',
                 'ac_cv_lib_crypt_crypt': 'no',
                 'ac_cv_lib_z_uncompress': 'yes',
                 'rb_cv_broken_crypt': 'no',
+                'rb_cv_gcc_atomic_builtins': 'yes',
+                'rb_cv_gcc_sync_builtins': 'no',
+                'rb_cv_prog_gnu_ld': subproject('common').get_variable('c_linker_is_gnu') ? 'yes' : 'no',
+                'rb_cv_symbol_prefix': meson.get_compiler('c').symbols_have_underscore_prefix() ? '_' : 'NONE',
             },
             depends: [
                 # Force Meson to fully build all of our vendored dependencies that are required by Ruby before building Ruby itself
@@ -103,7 +117,13 @@ ruby = declare_dependency(
         ).dependency('ruby-static').partial_dependency(
             sources: true,
         ),
-        host_machine.system() not in ['windows', 'cygwin', 'darwin'] ? meson.get_compiler('c').find_library('rt', required: false) : [],
+        host_machine.system() not in ['windows', 'cygwin', 'darwin']
+            ? [
+                meson.get_compiler('c').find_library('atomic', required: false),
+                meson.get_compiler('c').find_library('dl', required: false),
+                meson.get_compiler('c').find_library('rt', required: false),
+            ]
+            : [],
         host_machine.system() in ['windows', 'cygwin']
             ? [
                 meson.get_compiler('c').find_library('shell32', required: true),
@@ -129,6 +149,10 @@ ruby = declare_dependency(
         '-I' + meson.project_build_root() / 'dist' / 'include',
     ],
     link_args: [
+        # If the executable format is ELF, we need this linker flag to export Ruby's symbols from our executable so that gems can find them.
+        # Otherwise, any Ruby gems that have extensions will fail to load with undefined symbol errors.
+        # For non-ELF executable formats (e.g. Mach-O or PE), this behavior is already the default so no linker flag is needed for non-ELF formats.
+        meson.get_compiler('c').first_supported_link_argument('-rdynamic', '-Wl,-export-dynamic'),
         (host_machine.system() in ['windows', 'cygwin']) and not meson.get_compiler('c').has_header_symbol('math.h', 'lgamma_r')
             ? [
                 meson.project_build_root() / 'build' / 'lgamma_r.o',
@@ -180,5 +204,29 @@ ruby = declare_dependency(
 )
 
 ruby_build_dir = meson.project_build_root()
+
+miniruby = custom_target(
+    'miniruby',
+    output: 'miniruby',
+    command: [
+        subproject('common').get_variable('python'),
+        files('build-miniruby.py'),
+        baseruby,
+        ruby_build_dir / 'build',
+        '@OUTPUT@',
+    ],
+    depends: [
+        executable(
+            'miniruby-deps',
+            sources: [
+                'deps-stub.c',
+            ],
+            dependencies: [
+                ruby,
+            ],
+        ),
+    ],
+    build_by_default: true,
+)
 
 meson.override_dependency('ruby-3.4', ruby, static: true)
