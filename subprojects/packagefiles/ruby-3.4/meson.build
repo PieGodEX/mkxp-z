@@ -58,6 +58,7 @@ ruby = declare_dependency(
                 '--with-soname=ruby',
                 '--disable-shared',
                 '--disable-install-doc',
+                '--disable-yjit',
                 '--with-out-ext=openssl,readline,dbm,gdbm',
                 '--with-static-linked-ext',
                 '--disable-rubygems',
