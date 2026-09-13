@@ -27,5 +27,5 @@ diff_files =
 #    ruby-3.4-mkxp-z-patches.patch,
 #    ruby-3.4-clock-gettime.patch,
 #    ruby-3.4-mkxp-z-patches-windows-libs.patch,
-#    ruby-3.4-strings.patch,
+    ruby-3.4-strings.patch,
     end-of-diff-files.patch
