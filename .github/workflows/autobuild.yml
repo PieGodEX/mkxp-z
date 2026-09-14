@@ -119,7 +119,7 @@ jobs:
         with:
           msystem: mingw64
           install: >-
-            bison mingw-w64-x86_64-ccache mingw-w64-x86_64-cmake diffutils mingw-w64-x86_64-git make mingw-w64-x86_64-meson mingw-w64-x86_64-ruby mingw-w64-x86_64-libgcrypt
+            bison mingw-w64-x86_64-ccache mingw-w64-x86_64-cmake diffutils mingw-w64-x86_64-git make mingw-w64-x86_64-meson mingw-w64-x86_64-ruby libxcrypt-devel
             mingw-w64-x86_64-gcc
 
       - name: Checkout repository
