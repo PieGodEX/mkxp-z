@@ -83,7 +83,7 @@ void AudioStream::play(const std::string &filename,
 	lockStream();
 
 	float _volume = clamp<int>(volume, 0, 100) / 100.0f;
-	float _pitch  = clamp<int>(pitch, 50, 150) / 100.0f;
+	float _pitch  = clamp<int>(pitch, 50, 200) / 100.0f;
 
 	ALStream::State sState = stream.queryState();
 
