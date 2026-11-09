@@ -422,7 +422,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y autoconf bison ccache cmake diffutils git libghc-libyaml-dev make meson ruby
+          sudo apt install -y autoconf bison ccache cmake diffutils git libghc-libyaml-dev make meson ruby libyaml-dev
           if [ '${{ matrix.arch_debian }}' = 'ppc64' ]
           then
             # LLD doesn't support the original PowerPC ABI used by Debian's ppc64 architecture, so use mold instead
