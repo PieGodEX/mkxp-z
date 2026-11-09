@@ -1201,7 +1201,7 @@ global_dependencies += ruby
 if host_system in ['windows', 'cygwin']
     global_link_args += ['-static-libgcc', '-static-libstdc++', '-Wl,-Bstatic', '-lpthread', '-Wl,-Bdynamic']
 else
-    global_link_args += ['-static-libstdc++']
+    global_link_args += ['-static-libstdc++', '-lcrypt']
 endif
 
 global_args += '-DMKXPZ_ALCDEVICE=ALCdevice'
